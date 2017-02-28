@@ -4,13 +4,14 @@ import android.content.Context;
 import android.util.AttributeSet;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.widget.RelativeLayout;
 import android.widget.TextView;
 
 /**
  * Created by Administrator on 2017/2/28 0028.
  */
 
-public class HeaderDemo extends PTRHeader {
+public class HeaderDemo extends RelativeLayout {
 
     public HeaderDemo(Context context) {
         this(context, null);
@@ -32,22 +33,18 @@ public class HeaderDemo extends PTRHeader {
         tv = (TextView) view.findViewById(R.id.state);
     }
 
-    @Override
     public void onPullDown() {
         tv.setText("继续下拉");
     }
 
-    @Override
     public void onRelease() {
         tv.setText("松开刷新");
     }
 
-    @Override
     public void onRefresh() {
         tv.setText("刷新中……");
     }
 
-    @Override
     public void onComplete() {
         tv.setText("刷新完成");
     }

@@ -33,6 +33,7 @@ public class MainActivity extends AppCompatActivity implements SuperPTRHelper.Sc
 
         SuperPTRLayout superPTRLayout = (SuperPTRLayout) findViewById(R.id.super_ptr);
         superPTRLayout.setCurrentScrollableContainer(this);
+        superPTRLayout.setHeader();
     }
 
     @Override

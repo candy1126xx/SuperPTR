@@ -28,6 +28,8 @@ public class SuperPTRLayout extends ViewGroup {
     private int headerHeight;
     private int footerHeight;
 
+    private int refreshHeight;
+
     private VelocityTracker mVelocityTracker;
     private Scroller mScroller;
     private SuperPTRHelper ptrHelper;
@@ -142,6 +144,16 @@ public class SuperPTRLayout extends ViewGroup {
             final int bottom = top + footer.getMeasuredHeight();
             footer.layout(left, top, right, bottom);
         }
+    }
+
+    public void setHeader(){
+        HeaderDemo headerDemo = new HeaderDemo(getContext());
+        RelativeLayout.LayoutParams lp = new RelativeLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.addRule(ALIGN_PARENT_BOTTOM);
+        headerDemo.setLayoutParams(lp);
+        header.addView(headerDemo);
+        refreshHeight = headerDemo.getHeight();
     }
 
     @Override
