@@ -12,6 +12,7 @@ import android.widget.RelativeLayout;
 import android.widget.Scroller;
 
 import static android.widget.RelativeLayout.ALIGN_PARENT_BOTTOM;
+import static android.widget.RelativeLayout.ALIGN_PARENT_TOP;
 
 /**
  * Created by Administrator on 2017/2/27 0027.
@@ -29,15 +30,15 @@ public class SuperPTRLayout extends ViewGroup {
     private int footerHeight;
 
     private int refreshHeight;
+    private int loadMoreHeight;
 
     private VelocityTracker mVelocityTracker;
-    private Scroller mScroller;
+    private ScrollChecker scrollChecker;
     private SuperPTRHelper ptrHelper;
 
     private float mDownX;  //第一次按下的x坐标
     private float mDownY;  //第一次按下的y坐标
     private float mLastY;  //最后一次移动的Y坐标
-    private int mLastScrollerY;
     private boolean verticalScrollFlag = false;   //是否允许垂直滚动
 
     private int mTouchSlop;
@@ -50,6 +51,7 @@ public class SuperPTRLayout extends ViewGroup {
     private static final int STATE_FLING = 13;
     private static final int STATE_BACK = 14;
     private static final int STATE_REFRESH = 15;
+    private static final int STATE_LOADMORE = 16;
 
     private static final float MOVE_RATIO = 2.0f;
 
@@ -64,7 +66,7 @@ public class SuperPTRLayout extends ViewGroup {
     public SuperPTRLayout(Context context, AttributeSet attrs, int defStyleAttr) {
         super(context, attrs, defStyleAttr);
 
-        mScroller = new Scroller(context);
+        scrollChecker = new ScrollChecker();
         ptrHelper = new SuperPTRHelper();
         ViewConfiguration configuration = ViewConfiguration.get(context);
         mTouchSlop = configuration.getScaledTouchSlop();
@@ -156,6 +158,16 @@ public class SuperPTRLayout extends ViewGroup {
         refreshHeight = headerDemo.getRealHeight();
     }
 
+    public void setFooter() {
+        HeaderDemo headerDemo = new HeaderDemo(getContext());
+        RelativeLayout.LayoutParams lp = new RelativeLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.addRule(ALIGN_PARENT_TOP);
+        headerDemo.setLayoutParams(lp);
+        footer.addView(headerDemo);
+        loadMoreHeight = headerDemo.getRealHeight();
+    }
+
     @Override
     public boolean dispatchTouchEvent(MotionEvent ev) {
         float currentX = ev.getX();                   //当前手指相对于当前view的X坐标
@@ -171,7 +183,7 @@ public class SuperPTRLayout extends ViewGroup {
                 mDownX = currentX;
                 mDownY = currentY;
                 mLastY = currentY;
-                reset();
+                scrollChecker.reset();
                 break;
             case MotionEvent.ACTION_MOVE:
                 deltaY = mLastY - currentY; //连续两次进入move的偏移
@@ -263,37 +275,35 @@ public class SuperPTRLayout extends ViewGroup {
 
     private void move(float deltaY) {
         state = STATE_MOVE;
-        onMove(deltaY);
+        onMove(deltaY, MOVE_RATIO);
     }
 
     private void fling(float yVelocity) {
         if (yVelocity == 0) return;
-        mScroller.abortAnimation();
-        mScroller.forceFinished(true);
-        mLastScrollerY = getScrollY();
-        mScroller.fling(0, getScrollY(), 0, -(int) yVelocity, 0, 0, getMinY(), getMaxY());
+        scrollChecker.fling(-yVelocity, getMinY(), getMaxY());
         state = STATE_FLING;
-        invalidate();
     }
 
     private void springBack() {
         int s = getScrollY();
-        if (state == STATE_MOVE && s < 0 && s < -refreshHeight) {
-            beginRefresh();
-        } else if (state == STATE_MOVE && s > 0 && s > refreshHeight){
-
-        }else {
-            closeHeader();
+        if (s < 0){
+            if (state == STATE_MOVE && s < -refreshHeight){
+                beginRefresh(s);
+            }else {
+                closeHeader();
+            }
+        }else if (s > 0){
+            if (state == STATE_MOVE && s > loadMoreHeight){
+                beginLoadMore(s);
+            }else {
+                closeFooter();
+            }
         }
     }
 
-    private void beginRefresh() {
-        mScroller.abortAnimation();
-        mScroller.forceFinished(true);
-        mLastScrollerY = getScrollY();
+    private void beginRefresh(int start) {
         state = STATE_REFRESH;
-        mScroller.startScroll(0, mLastScrollerY, 0, -mLastScrollerY - refreshHeight, Math.abs(-mLastScrollerY - refreshHeight) + 1);
-        invalidate();
+        scrollChecker.smoothScrollBy(-start - refreshHeight);
         postDelayed(new Runnable() {
             @Override
             public void run() {
@@ -302,37 +312,35 @@ public class SuperPTRLayout extends ViewGroup {
         }, 2000);
     }
 
+    private void beginLoadMore(int start) {
+        state = STATE_LOADMORE;
+        scrollChecker.smoothScrollBy(loadMoreHeight-start);
+        postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                closeFooter();
+            }
+        }, 2000);
+    }
+
     public void closeHeader() {
-        if (getScrollY() == 0) return;
-        mScroller.abortAnimation();
-        mScroller.forceFinished(true);
-        mLastScrollerY = getScrollY();
         state = STATE_BACK;
-        mScroller.startScroll(0, mLastScrollerY, 0, -mLastScrollerY, Math.abs(mLastScrollerY) + 1);
-        invalidate();
+        scrollChecker.smoothScrollBy(-getScrollY());
     }
 
-    @Override
-    public void computeScroll() {
-        switch (state) {
-            case STATE_FLING:
-                onFling();
-                break;
-            case STATE_BACK:
-            case STATE_REFRESH:
-                onBack();
-                break;
-        }
+    public void closeFooter() {
+        state = STATE_BACK;
+        scrollChecker.smoothScrollBy(-getScrollY());
     }
 
-    private void onMove(float deltaY) {
+    private void onMove(float deltaY, float ratio) {
         if (deltaY > 0) {
             if (headerIsShow()) {
                 scrollBy(0, getHideHeight(deltaY));
             } else if (canNestedScrollUp()) {
                 ptrHelper.scrollBy((int) deltaY);
             } else {
-                scrollBy(0, (int) (deltaY / MOVE_RATIO));
+                scrollBy(0, (int) (deltaY / ratio));
             }
         } else if (deltaY < 0) {
             if (footerIsShow()) {
@@ -340,7 +348,7 @@ public class SuperPTRLayout extends ViewGroup {
             } else if (canNestedScrollDown()) {
                 ptrHelper.scrollBy((int) deltaY);
             } else {
-                scrollBy(0, (int) (deltaY / MOVE_RATIO));
+                scrollBy(0, (int) (deltaY / ratio));
             }
         }
     }
@@ -354,36 +362,6 @@ public class SuperPTRLayout extends ViewGroup {
         } else {
             return 0;
         }
-    }
-
-    private void onFling() {
-        if (mScroller.computeScrollOffset()) {
-            final int currY = mScroller.getCurrY();
-            final int deltaY = currY - mLastScrollerY;
-            onMove(deltaY);
-            invalidate();
-            mLastScrollerY = currY;
-        } else {
-            springBack();
-        }
-    }
-
-    private void onBack() {
-        if (mScroller.computeScrollOffset()) {
-            final int currY = mScroller.getCurrY();
-            final int deltaY = currY - mLastScrollerY;
-            if (deltaY != 0) scrollBy(0, deltaY);
-            invalidate();
-            mLastScrollerY = currY;
-        } else {
-            reset();
-        }
-    }
-
-    private void reset() {
-        mScroller.abortAnimation();
-        mScroller.forceFinished(true);
-        state = STATE_IDLE;
     }
 
     @Override
@@ -441,5 +419,74 @@ public class SuperPTRLayout extends ViewGroup {
 
     public void setCurrentScrollableContainer(SuperPTRHelper.ScrollableContainer scrollableContainer) {
         ptrHelper.setCurrentScrollableContainer(scrollableContainer);
+    }
+
+    class ScrollChecker implements Runnable {
+
+        private int mLastFlingY;
+        private Scroller mScroller;
+
+        public ScrollChecker() {
+            mScroller = new Scroller(getContext());
+        }
+
+        public void run() {
+            switch (state) {
+                case STATE_FLING:
+                    onFling();
+                    break;
+                case STATE_BACK:
+                case STATE_REFRESH:
+                case STATE_LOADMORE:
+                    onBack();
+                    break;
+            }
+        }
+
+        private void onFling() {
+            if (mScroller.computeScrollOffset()) {
+                final int currY = mScroller.getCurrY();
+                final int deltaY = currY - mLastFlingY;
+                onMove(deltaY, 1.0f);
+                post(this);
+                mLastFlingY = currY;
+            } else {
+                springBack();
+            }
+        }
+
+        private void onBack() {
+            if (mScroller.computeScrollOffset()) {
+                final int currY = mScroller.getCurrY();
+                final int deltaY = currY - mLastFlingY;
+                if (deltaY != 0) scrollBy(0, deltaY);
+                post(this);
+                mLastFlingY = currY;
+            } else {
+                reset();
+                state = STATE_IDLE;
+            }
+        }
+
+        private void reset() {
+            mLastFlingY = getScrollY();
+            mScroller.forceFinished(true);
+            mScroller.abortAnimation();
+            removeCallbacks(this);
+        }
+
+        public void smoothScrollBy(int distance) {
+            if (distance == 0) return;
+            reset();
+            mScroller.startScroll(0, mLastFlingY, 0, distance, Math.abs(distance));
+            post(this);
+        }
+
+        public void fling(float velocity, int min, int max) {
+            if (velocity == 0) return;
+            reset();
+            mScroller.fling(0, mLastFlingY, 0, (int) velocity, 0, 0, min, max);
+            post(this);
+        }
     }
 }
