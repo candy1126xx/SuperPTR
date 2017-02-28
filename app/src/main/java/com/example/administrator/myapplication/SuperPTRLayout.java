@@ -21,10 +21,12 @@ import static android.widget.RelativeLayout.ALIGN_PARENT_TOP;
 public class SuperPTRLayout extends ViewGroup {
 
     private RelativeLayout header;
+    private HeaderDemo headerDemo;
 
     private View content;
 
     private RelativeLayout footer;
+    private FooterDemo footerDemo;
 
     private int headerHeight;
     private int footerHeight;
@@ -82,6 +84,7 @@ public class SuperPTRLayout extends ViewGroup {
         LayoutParams lp1 = new LayoutParams(LayoutParams.MATCH_PARENT, (int) (screenHeight / MOVE_RATIO));
         header.setLayoutParams(lp1);
         header.setBackgroundColor(Color.YELLOW);
+        setHeader();
         addView(header);
         // 内容
         content = getChildAt(0);
@@ -90,6 +93,7 @@ public class SuperPTRLayout extends ViewGroup {
         LayoutParams lp2 = new LayoutParams(LayoutParams.MATCH_PARENT, (int) (screenHeight / MOVE_RATIO));
         footer.setLayoutParams(lp2);
         footer.setBackgroundColor(Color.BLUE);
+        setFooter();
         addView(footer);
         super.onFinishInflate();
     }
@@ -120,12 +124,9 @@ public class SuperPTRLayout extends ViewGroup {
 
     @Override
     protected void onLayout(boolean changed, int l, int t, int r, int b) {
-        // 布局
-        int scrollY = getScrollY();
-
         if (header != null) {
             final int left = 0;
-            final int top = 0 - headerHeight + scrollY;
+            final int top = -headerHeight;
             final int right = left + header.getMeasuredWidth();
             final int bottom = top + header.getMeasuredHeight();
             header.layout(left, top, right, bottom);
@@ -133,7 +134,7 @@ public class SuperPTRLayout extends ViewGroup {
 
         if (content != null) {
             final int left = 0;
-            final int top = scrollY;
+            final int top = 0;
             final int right = left + content.getMeasuredWidth();
             final int bottom = top + content.getMeasuredHeight();
             content.layout(left, top, right, bottom);
@@ -141,15 +142,15 @@ public class SuperPTRLayout extends ViewGroup {
 
         if (content != null && footer != null) {
             final int left = 0;
-            final int top = content.getMeasuredHeight() + scrollY;
+            final int top = content.getMeasuredHeight();
             final int right = left + footer.getMeasuredWidth();
             final int bottom = top + footer.getMeasuredHeight();
             footer.layout(left, top, right, bottom);
         }
     }
 
-    public void setHeader() {
-        HeaderDemo headerDemo = new HeaderDemo(getContext());
+    private void setHeader() {
+        headerDemo = new HeaderDemo(getContext());
         RelativeLayout.LayoutParams lp = new RelativeLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         lp.addRule(ALIGN_PARENT_BOTTOM);
@@ -158,14 +159,14 @@ public class SuperPTRLayout extends ViewGroup {
         refreshHeight = headerDemo.getRealHeight();
     }
 
-    public void setFooter() {
-        HeaderDemo headerDemo = new HeaderDemo(getContext());
+    private void setFooter() {
+        footerDemo = new FooterDemo(getContext());
         RelativeLayout.LayoutParams lp = new RelativeLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         lp.addRule(ALIGN_PARENT_TOP);
-        headerDemo.setLayoutParams(lp);
-        footer.addView(headerDemo);
-        loadMoreHeight = headerDemo.getRealHeight();
+        footerDemo.setLayoutParams(lp);
+        footer.addView(footerDemo);
+        loadMoreHeight = footerDemo.getRealHeight();
     }
 
     @Override
@@ -276,6 +277,20 @@ public class SuperPTRLayout extends ViewGroup {
     private void move(float deltaY) {
         state = STATE_MOVE;
         onMove(deltaY, MOVE_RATIO);
+        int y = getScrollY();
+        if (y < 0){
+            if (y < -refreshHeight){
+                headerDemo.onRelease();
+            }else {
+                headerDemo.onPullDown();
+            }
+        }else if (y > 0){
+            if (y > loadMoreHeight){
+                footerDemo.onRelease();
+            }else {
+                footerDemo.onPullUp();
+            }
+        }
     }
 
     private void fling(float yVelocity) {
@@ -286,16 +301,16 @@ public class SuperPTRLayout extends ViewGroup {
 
     private void springBack() {
         int s = getScrollY();
-        if (s < 0){
-            if (state == STATE_MOVE && s < -refreshHeight){
+        if (s < 0) {
+            if (state == STATE_MOVE && s < -refreshHeight) {
                 beginRefresh(s);
-            }else {
+            } else {
                 closeHeader();
             }
-        }else if (s > 0){
-            if (state == STATE_MOVE && s > loadMoreHeight){
+        } else if (s > 0) {
+            if (state == STATE_MOVE && s > loadMoreHeight) {
                 beginLoadMore(s);
-            }else {
+            } else {
                 closeFooter();
             }
         }
@@ -303,10 +318,12 @@ public class SuperPTRLayout extends ViewGroup {
 
     private void beginRefresh(int start) {
         state = STATE_REFRESH;
+        headerDemo.onRefresh();
         scrollChecker.smoothScrollBy(-start - refreshHeight);
         postDelayed(new Runnable() {
             @Override
             public void run() {
+                headerDemo.onComplete();
                 closeHeader();
             }
         }, 2000);
@@ -314,10 +331,12 @@ public class SuperPTRLayout extends ViewGroup {
 
     private void beginLoadMore(int start) {
         state = STATE_LOADMORE;
-        scrollChecker.smoothScrollBy(loadMoreHeight-start);
+        footerDemo.onLoadMore();
+        scrollChecker.smoothScrollBy(loadMoreHeight - start);
         postDelayed(new Runnable() {
             @Override
             public void run() {
+                footerDemo.onComplete();
                 closeFooter();
             }
         }, 2000);
@@ -464,6 +483,8 @@ public class SuperPTRLayout extends ViewGroup {
                 mLastFlingY = currY;
             } else {
                 reset();
+                if (state == STATE_BACK) headerDemo.onIdle();
+                if (state == STATE_BACK) footerDemo.onIdle();
                 state = STATE_IDLE;
             }
         }

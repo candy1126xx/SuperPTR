@@ -11,17 +11,17 @@ import android.widget.TextView;
  * Created by Administrator on 2017/2/28 0028.
  */
 
-public class HeaderDemo extends RelativeLayout {
+public class FooterDemo extends RelativeLayout {
 
-    public HeaderDemo(Context context) {
+    public FooterDemo(Context context) {
         this(context, null);
     }
 
-    public HeaderDemo(Context context, AttributeSet attrs) {
+    public FooterDemo(Context context, AttributeSet attrs) {
         this(context, attrs, 0);
     }
 
-    public HeaderDemo(Context context, AttributeSet attrs, int defStyleAttr) {
+    public FooterDemo(Context context, AttributeSet attrs, int defStyleAttr) {
         super(context, attrs, defStyleAttr);
         init();
     }
@@ -39,24 +39,24 @@ public class HeaderDemo extends RelativeLayout {
         return rootView.getLayoutParams().height;
     }
 
-    public void onPullDown() {
+    public void onPullUp() {
         tv.setVisibility(VISIBLE);
-        tv.setText("继续下拉");
+        tv.setText("继续上拉");
     }
 
     public void onRelease() {
         tv.setVisibility(VISIBLE);
-        tv.setText("松开刷新");
+        tv.setText("松开加载");
     }
 
-    public void onRefresh() {
+    public void onLoadMore() {
         tv.setVisibility(VISIBLE);
-        tv.setText("刷新中……");
+        tv.setText("加载中……");
     }
 
     public void onComplete() {
         tv.setVisibility(VISIBLE);
-        tv.setText("刷新完成");
+        tv.setText("加载完成");
     }
 
     public void onIdle() {
