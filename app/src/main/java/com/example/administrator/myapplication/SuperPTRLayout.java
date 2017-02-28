@@ -52,8 +52,15 @@ public class SuperPTRLayout extends ViewGroup {
     private static final int STATE_MOVE = 12;
     private static final int STATE_FLING = 13;
     private static final int STATE_BACK = 14;
-    private static final int STATE_REFRESH = 15;
-    private static final int STATE_LOADMORE = 16;
+
+    private int event = IDLE;
+    private static final int IDLE = 21;
+    private static final int PEPARE_REFRESH = 22;
+    private static final int PEPARE_LOADMORE = 23;
+    private static final int REFRESHING = 24;
+    private static final int LOADMOREING = 25;
+    private static final int REFRESH_COM = 26;
+    private static final int LOADMORE_COM = 27;
 
     private static final float MOVE_RATIO = 2.0f;
 
@@ -280,14 +287,18 @@ public class SuperPTRLayout extends ViewGroup {
         int y = getScrollY();
         if (y < 0){
             if (y < -refreshHeight){
+                event = PEPARE_REFRESH;
                 headerDemo.onRelease();
             }else {
+                event = IDLE;
                 headerDemo.onPullDown();
             }
         }else if (y > 0){
             if (y > loadMoreHeight){
+                event = PEPARE_LOADMORE;
                 footerDemo.onRelease();
             }else {
+                event = IDLE;
                 footerDemo.onPullUp();
             }
         }
@@ -302,13 +313,13 @@ public class SuperPTRLayout extends ViewGroup {
     private void springBack() {
         int s = getScrollY();
         if (s < 0) {
-            if (state == STATE_MOVE && s < -refreshHeight) {
+            if (event == PEPARE_REFRESH && s < -refreshHeight) {
                 beginRefresh(s);
             } else {
                 closeHeader();
             }
         } else if (s > 0) {
-            if (state == STATE_MOVE && s > loadMoreHeight) {
+            if (event == PEPARE_LOADMORE && s > loadMoreHeight) {
                 beginLoadMore(s);
             } else {
                 closeFooter();
@@ -317,29 +328,41 @@ public class SuperPTRLayout extends ViewGroup {
     }
 
     private void beginRefresh(int start) {
-        state = STATE_REFRESH;
+        state = STATE_BACK;
+        event = REFRESHING;
         headerDemo.onRefresh();
         scrollChecker.smoothScrollBy(-start - refreshHeight);
         postDelayed(new Runnable() {
             @Override
             public void run() {
-                headerDemo.onComplete();
-                closeHeader();
+                finishRefresh();
             }
         }, 2000);
     }
 
+    private void finishRefresh(){
+        event = REFRESH_COM;
+        headerDemo.onComplete();
+        closeHeader();
+    }
+
     private void beginLoadMore(int start) {
-        state = STATE_LOADMORE;
+        state = STATE_BACK;
+        event = LOADMOREING;
         footerDemo.onLoadMore();
         scrollChecker.smoothScrollBy(loadMoreHeight - start);
         postDelayed(new Runnable() {
             @Override
             public void run() {
-                footerDemo.onComplete();
-                closeFooter();
+                finishLoadMore();
             }
         }, 2000);
+    }
+
+    private void finishLoadMore(){
+        event = LOADMORE_COM;
+        footerDemo.onComplete();
+        closeFooter();
     }
 
     public void closeHeader() {
@@ -455,8 +478,6 @@ public class SuperPTRLayout extends ViewGroup {
                     onFling();
                     break;
                 case STATE_BACK:
-                case STATE_REFRESH:
-                case STATE_LOADMORE:
                     onBack();
                     break;
             }
@@ -483,8 +504,8 @@ public class SuperPTRLayout extends ViewGroup {
                 mLastFlingY = currY;
             } else {
                 reset();
-                if (state == STATE_BACK) headerDemo.onIdle();
-                if (state == STATE_BACK) footerDemo.onIdle();
+                if (event == REFRESH_COM) headerDemo.onIdle();
+                if (event == LOADMORE_COM) footerDemo.onIdle();
                 state = STATE_IDLE;
             }
         }
