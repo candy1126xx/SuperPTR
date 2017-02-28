@@ -26,11 +26,17 @@ public class HeaderDemo extends RelativeLayout {
         init();
     }
 
+    private RelativeLayout rootView;
     private TextView tv;
 
     private void init(){
         View view = LayoutInflater.from(getContext()).inflate(R.layout.header, this);
+        rootView = (RelativeLayout) view.findViewById(R.id.root_view);
         tv = (TextView) view.findViewById(R.id.state);
+    }
+
+    public int getRealHeight(){
+        return rootView.getLayoutParams().height;
     }
 
     public void onPullDown() {

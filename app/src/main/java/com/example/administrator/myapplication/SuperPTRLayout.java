@@ -146,14 +146,14 @@ public class SuperPTRLayout extends ViewGroup {
         }
     }
 
-    public void setHeader(){
+    public void setHeader() {
         HeaderDemo headerDemo = new HeaderDemo(getContext());
         RelativeLayout.LayoutParams lp = new RelativeLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         lp.addRule(ALIGN_PARENT_BOTTOM);
         headerDemo.setLayoutParams(lp);
         header.addView(headerDemo);
-        refreshHeight = headerDemo.getHeight();
+        refreshHeight = headerDemo.getRealHeight();
     }
 
     @Override
@@ -277,6 +277,32 @@ public class SuperPTRLayout extends ViewGroup {
     }
 
     private void springBack() {
+        int s = getScrollY();
+        if (state == STATE_MOVE && s < 0 && s < -refreshHeight) {
+            beginRefresh();
+        } else if (state == STATE_MOVE && s > 0 && s > refreshHeight){
+
+        }else {
+            closeHeader();
+        }
+    }
+
+    private void beginRefresh() {
+        mScroller.abortAnimation();
+        mScroller.forceFinished(true);
+        mLastScrollerY = getScrollY();
+        state = STATE_REFRESH;
+        mScroller.startScroll(0, mLastScrollerY, 0, -mLastScrollerY - refreshHeight, Math.abs(-mLastScrollerY - refreshHeight) + 1);
+        invalidate();
+        postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                closeHeader();
+            }
+        }, 2000);
+    }
+
+    public void closeHeader() {
         if (getScrollY() == 0) return;
         mScroller.abortAnimation();
         mScroller.forceFinished(true);
